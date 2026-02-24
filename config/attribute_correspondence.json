@@ -1,0 +1,7 @@
+{
+  "_comment": "ローカル（世界大地図帳）と GeoNames の属性対応表。未作成のためプレースホルダ。Leaflet で属性別色分けする際に使用予定。",
+  "local_feature_source": "世界大地図帳の略語・索引（例: 山、湖、岬など）",
+  "geonames_fcl": "http://www.geonames.org/export/codes.html の feature class (A,H,L,P,R,S,T,U,V)",
+  "geonames_fcode": "feature code (例: PPL, MT, LK, CAPE)",
+  "mapping": []
+}
