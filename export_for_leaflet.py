@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils import is_excel_lock_file
+
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_MATCH_DIR = BASE_DIR / "output_match"
 OUTPUT_MATCH_RESULTS_DIR = BASE_DIR / "output_match_results"
@@ -167,7 +169,7 @@ def main():
     for d in (OUTPUT_MATCH_RESULTS_DIR, OUTPUT_MATCH_DIR):
         if d.exists():
             for p in d.glob("cn*_*.xlsx"):
-                if not p.name.startswith("~$"):
+                if not is_excel_lock_file(p):
                     stems.add(p.stem)
     result_files = []
     for stem in sorted(stems):

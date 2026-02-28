@@ -18,7 +18,8 @@ import pandas as pd
 from pathlib import Path
 
 from geonames_loader import load_master_pkl, get_geonames_for_country
-from normalizers.expand_quote_variants import expand_candidates_quote_variants  # 7文字版
+from utils import is_excel_lock_file
+# from normalizers.expand_quote_variants import expand_candidates_quote_variants  # 7文字版
 # from normalizers.expand_quote_variants_2chars import expand_candidates_quote_variants  # 2文字版
 from normalizers.stage_matcher import (
     normalize_stage1,
@@ -28,7 +29,7 @@ from normalizers.stage_matcher import (
 
 BASE_DIR = Path(__file__).resolve().parent
 INPUT_DIR = BASE_DIR / "output_match"
-OUTPUT_DIR = BASE_DIR / "output_match_results_quote_variants"  # 7文字版
+OUTPUT_DIR = BASE_DIR / "output_match_results"
 # OUTPUT_DIR = BASE_DIR / "output_match_results_quote_variants_2chars"  # 2文字版
 CONFIG_DIR = BASE_DIR / "config"
 OVERSEAS_FILE = CONFIG_DIR / "overseas_territories.json"
@@ -80,11 +81,11 @@ def build_stage_maps(records: list[dict]):
 
 
 # =========================================================
-# normalized_name の読み込み（リスト形式対応）
+# edited_name の読み込み（リスト形式対応）
 # =========================================================
 
-def parse_normalized_name(value) -> list:
-    """Excel から読み込んだ normalized_name をリストに変換する。"""
+def parse_edited_name(value) -> list:
+    """Excel から読み込んだ # edited_name をリストに変換する。"""
     if pd.isna(value):
         return []
     if isinstance(value, list):
@@ -111,8 +112,8 @@ def process_excel(path: Path, overseas_map: dict, db: dict):
     print(f"processing: {path.name}")
 
     df = pd.read_excel(path, engine="openpyxl")
-    if "normalized_name" not in df.columns or "judge" not in df.columns:
-        print("  Skipping: missing normalized_name or judge")
+    if "edited_name" not in df.columns or "judge" not in df.columns:
+        print("  Skipping: missing edited_name or judge")
         return None
 
     country_code = path.stem.split("_")[1] if "_" in path.stem else ""
@@ -145,12 +146,12 @@ def process_excel(path: Path, overseas_map: dict, db: dict):
     total_rows = len(target_rows)  # 行数ベース（hit_0 と一致させるため）
 
     for idx in target_rows:
-        raw = df.at[idx, "normalized_name"]
-        candidates = parse_normalized_name(raw)
+        raw = df.at[idx, "edited_name"]
+        candidates = parse_edited_name(raw)   
         if not candidates:
             continue
         # 記号ゆれ（’/ʻ/ʿ 等）を候補として複数形で追加
-        candidates = expand_candidates_quote_variants(candidates)
+        # candidates = expand_candidates_quote_variants(candidates)
 
         stage1_hits = {}
         stage2_hits = {}
@@ -263,7 +264,7 @@ def main():
     stats = []
 
     for path in sorted(INPUT_DIR.glob("cn*_*.xlsx")):
-        if path.name.startswith("~$"):
+        if is_excel_lock_file(path):
             continue
         s = process_excel(path, overseas_map, db)
         if s:

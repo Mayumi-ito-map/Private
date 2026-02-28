@@ -3,6 +3,7 @@
 # =========================
 *.pkl
 allCountries.txt
+alternateNames.txt
 
 # =========================
 # 出力系

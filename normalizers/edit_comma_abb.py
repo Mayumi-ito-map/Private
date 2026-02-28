@@ -64,6 +64,9 @@ def reorder_by_comma(text: str):
 # ③ 略語展開（1 → N）
 # =====================
 def replace_abbreviation_with_dict(text, abbreviation_dict):
+    # return [text]
+
+    # 以下は略語展開ありの場合に使用
     results = [text]
 
     for key, values in abbreviation_dict.items():
@@ -101,7 +104,7 @@ def expand_fjord_suffix(text: str):
 # =====================
 # ⑤ 正規化本体（必ず list を返す）
 # =====================
-def normalize_place_name(text: str, abbreviation_dict):
+def edit_place_name(text: str, abbreviation_dict):
     texts = expand_fjord_suffix(text)
 
     # ピリオド直後スペース補正
@@ -121,14 +124,14 @@ def normalize_place_name(text: str, abbreviation_dict):
         comma_reordered_texts.extend(reorder_by_comma(t))
     texts = comma_reordered_texts
 
-    # 略語展開（1→N）
+    # 略語展開（1→N）※実験で略語をそのまま使うときは以下をコメントアウト
     expanded_texts = []
     for t in texts:
         expanded_texts.extend(
             replace_abbreviation_with_dict(t, abbreviation_dict)
         )
     texts = expanded_texts
-    
+
     # 重複除去＋ソート
     return sorted(set(texts))
 
@@ -139,12 +142,13 @@ def normalize_place_name(text: str, abbreviation_dict):
 _abbreviation_dict = load_abbreviation_dict(abbreviation_file)
 
 
-def normalize_comma_abb(text: str):
+def edit_comma_abb(text: str, use_abbreviation: bool = True):
     """
-    外部から呼ばれる関数
+    外部から呼ばれる関数。
+    use_abbreviation=False のときは略語展開を行わない（① Excel→辞書 を行わない場合と同等）。
     """
-    return normalize_place_name(text, _abbreviation_dict)
-
+    abb = _abbreviation_dict if use_abbreviation else {}
+    return edit_place_name(text, abb)
 
 # =====================
 # 単体テスト
@@ -162,7 +166,7 @@ def main():
     ]
 
     for name in test_place_names:
-        results = normalize_comma_abb(name)
+        results = edit_comma_abb(name)
         print(f"\n元: {name}")
         for r in results:
             print("  →", r)

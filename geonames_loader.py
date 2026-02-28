@@ -8,6 +8,7 @@ geonames_master.pkl を読み、国コード（海外領土対応）でフィル
 from __future__ import annotations
 
 import pickle
+import unicodedata
 from pathlib import Path
 
 import geopandas as gpd
@@ -26,6 +27,15 @@ def load_master_pkl(pkl_path: Path | None = None) -> dict:
         return pickle.load(f)
 
 
+# 国コードのエイリアス（Excel の表記ゆれ → GeoNames の正式コード）
+# 例: KO/KOR は KR、PRK は KP
+COUNTRY_CODE_ALIASES = {
+    "KO": "KR",
+    "KOR": "KR",
+    "PRK": "KP",
+}
+
+
 def resolve_country_codes(
     excel_country_code: str,
     overseas_map: dict,
@@ -33,10 +43,12 @@ def resolve_country_codes(
     """
     Excel側の2桁国コードから、マッチング対象のGeoNames国コードリストを返す。
     海外領土がある場合は複数コードになる。
+    エイリアス（KO→KR 等）で補正する。
     """
-    codes = overseas_map.get(excel_country_code, [excel_country_code])
-    if excel_country_code not in codes:
-        codes = [excel_country_code] + [c for c in codes if c != excel_country_code]
+    resolved = COUNTRY_CODE_ALIASES.get(excel_country_code, excel_country_code)
+    codes = overseas_map.get(resolved, [resolved])
+    if resolved not in codes:
+        codes = [resolved] + [c for c in codes if c != resolved]
     return list(dict.fromkeys(codes))
 
 
@@ -62,27 +74,35 @@ def get_records_by_country_codes(
     return records
 
 
-def build_placename_dict(records: list[dict]) -> dict:
+def build_placename_dict(records: list[dict], field: str = "name") -> dict:
     """
     レコードリストから、完全一致用の辞書を構築する。
-    キー: name / asciiname / alternatenames の各文字列
-    値: その名前に対応するレコードのリスト（geonameid で重複は別レコードのまま）
+    asciiname は使用しない（name / alternatenames で重み付けマッチングを想定）。
+
+    Args:
+        records: GeoNames レコードのリスト
+        field: "name" または "alternatenames"。どちらのフィールドのみを辞書に含めるか。
+
+    Returns:
+        名前 -> [record, ...] の辞書（geonameid で重複は別レコードのまま）
     """
     expanded = {}
     for record in records:
         names = []
-        if record.get("name"):
-            names.append(record["name"])
-        if record.get("asciiname"):
-            names.append(record["asciiname"])
-        alt = record.get("alternatenames")
-        if isinstance(alt, list):
-            names.extend(alt)
-        elif isinstance(alt, str) and alt:
-            names.extend([a.strip() for a in alt.split(",") if a.strip()])
+        if field == "name":
+            if record.get("name"):
+                names.append(record["name"])
+        elif field == "alternatenames":
+            alt = record.get("alternatenames")
+            if isinstance(alt, list):
+                names.extend(alt)
+            elif isinstance(alt, str) and alt:
+                names.extend([a.strip() for a in alt.split(",") if a.strip()])
         for n in names:
             if n:
-                expanded.setdefault(n, []).append(record)
+                # ハングル・漢字の Unicode 正規化（NFC）で表記ゆれを吸収
+                key = unicodedata.normalize("NFC", n)
+                expanded.setdefault(key, []).append(record)
     return expanded
 
 
@@ -120,10 +140,14 @@ def get_geonames_for_country(
     db: dict,
     excel_country_code: str,
     overseas_map: dict,
+    field: str = "name",
 ):
     """
     既にメモリに読み込んだ db から、国コードでフィルタした結果を返す。
     司令塔で pkl を1回だけ読み、国ループ内ではこの関数を使うと高速。
+
+    Args:
+        field: "name" または "alternatenames"。placename_dict の構築に使用するフィールド。
 
     Returns:
         tuple: (placename_dict, records, gdf)
@@ -133,7 +157,7 @@ def get_geonames_for_country(
     """
     resolved = resolve_country_codes(excel_country_code, overseas_map)
     records = get_records_by_country_codes(db, resolved)
-    placename_dict = build_placename_dict(records)
+    placename_dict = build_placename_dict(records, field=field)
     gdf = records_to_gdf(records)
     return placename_dict, records, gdf
 

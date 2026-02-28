@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils import is_excel_lock_file
+
 BASE_DIR = Path(__file__).resolve().parent
 INPUT_DIR = BASE_DIR / "output_match_results_quote_variants"
 OUTPUT_DIR = BASE_DIR / "output_leaflet"
@@ -96,7 +98,7 @@ def geoname_record_to_properties(r: dict) -> dict:
         "longitude": lon,
         "feature_class": r.get("feature_class") or r.get("fcl", ""),
         "feature_code": r.get("feature_code") or r.get("fcode", ""),
-        "country_code": r.get("country_code") or r.get("ccode", ""),
+        "country_code": r.get("country_code") or r.get("ccode") or r.get("cc", ""),
     }
 
 
@@ -182,7 +184,7 @@ def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     excel_files = sorted(INPUT_DIR.glob("cn*_*.xlsx"))
-    excel_files = [p for p in excel_files if not p.name.startswith("~$")]
+    excel_files = [p for p in excel_files if not is_excel_lock_file(p)]
 
     if not excel_files:
         print(f"No Excel files in {INPUT_DIR}")

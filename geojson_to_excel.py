@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils import is_excel_lock_file
+
 BASE_DIR = Path(__file__).resolve().parent
 INPUT_DIR = BASE_DIR / "output_leaflet"
 OUTPUT_DIR = BASE_DIR / "output_leaflet"
@@ -54,7 +56,7 @@ def convert_one(path: Path) -> tuple[Path, int] | None:
 
 def main():
     geojson_files = sorted(INPUT_DIR.glob("cn*_*.geojson"))
-    geojson_files = [p for p in geojson_files if not p.name.startswith("~$")]
+    geojson_files = [p for p in geojson_files if not is_excel_lock_file(p)]
     for path in geojson_files:
         try:
             result = convert_one(path)
