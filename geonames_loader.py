@@ -59,9 +59,10 @@ def get_records_by_country_codes(
     """
     by_ccode と by_id から、指定国コード群に属する全レコードのリストを返す。
     各レコードは geonameid, name, asciiname, alternatenames, lat, lon 等を保持。
+    ※ build_geonames_db は "by_cc" で保存するため、by_ccode が無い場合は by_cc を使用。
     """
     by_id = db["by_id"]
-    by_ccode = db.get("by_ccode", {})
+    by_ccode = db.get("by_ccode") or db.get("by_cc", {})
     geonameids = []
     for cc in country_codes:
         geonameids.extend(by_ccode.get(cc, []))

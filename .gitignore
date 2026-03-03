@@ -17,6 +17,8 @@ output_match_results_quote_variants/
 # ローカル素材・作業用
 # =========================
 excel_local/
+excel_local_merged/
+excel_local_raw/
 プロジェクトから一時的に/
 記号/
 
