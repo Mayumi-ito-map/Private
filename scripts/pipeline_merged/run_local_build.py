@@ -53,13 +53,19 @@ LOCAL_LAT_LON_COLUMNS = [
 ]
 LOCAL_LATLONG_SINGLE_COL = "lat,long"
 
+# local_fcl T のとき、GeoNames ヒットを fcl ∈ {H, T} に限定（memo/260304/local_fcl_T_GeoNames_fcl制限_報告書.md）
+# False にするとフィルタを無効化（制限なしの比較用）
+ENABLE_FCL_FILTER_FOR_LO_T = True
+GN_FCL_ALLOWED_WHEN_LO_T = ("H", "T")
+
 # 合体ファイルのパターン
+# テスト時: ["cn100_ヨーロッパ.xlsx"] のみにするとヨーロッパだけ実行
 MERGED_PATTERNS = [
+    "cn100_ヨーロッパ.xlsx",  # テスト: ヨーロッパのみ
+    # "cn000_アジア.xlsx",
+    # "cn200_アフリカ.xlsx",
     # "cn300_北中アメリカ.xlsx",
     # "cn400_500_南米オセアニア.xlsx",
-    "cn000_アジア.xlsx",
-    "cn100_ヨーロッパ.xlsx",
-    "cn200_アフリカ.xlsx",
 ]
 
 # =========================================================
@@ -191,6 +197,40 @@ def _add_match_columns(
     df[[hits_col, "matched_keys"]] = df["edited_name"].apply(
         lambda xs: pd.Series(match_geonames_candidates(xs, placename_dict))
     )
+
+    # -------------------------------------------------------------------------
+    # [fcl フィルタ] lo_fcl=T の行のみ、GeoNames ヒットを fcl ∈ {H, T} に限定
+    # 無効化: ENABLE_FCL_FILTER_FOR_LO_T = False に変更
+    # コメントアウトで無効化する場合は、この if ブロック全体を """ ... """ で囲むか削除
+    # -------------------------------------------------------------------------
+    if ENABLE_FCL_FILTER_FOR_LO_T and "lo_fcl" in df.columns:
+        def _filter_hits_for_lo_t(row):
+            hits = row[hits_col]
+            if row.get("lo_fcl") != "T" or not hits:
+                return row[hits_col], row["matched_keys"]
+            # fcl が H または T のヒットのみ残す
+            filtered = [r for r in hits if r.get("fcl", "") in GN_FCL_ALLOWED_WHEN_LO_T]
+            hit_ids = {r.get("geonameid") for r in filtered if r.get("geonameid")}
+            # フィルタ後のヒットに対応する候補名で matched_keys を再計算
+            candidates = row["edited_name"]
+            if not isinstance(candidates, list):
+                candidates = [candidates] if candidates else []
+            result_keys = []
+            for name in candidates:
+                key = unicodedata.normalize("NFC", name) if name else ""
+                if key and key in placename_dict:
+                    for r in placename_dict[key]:
+                        if r.get("geonameid") in hit_ids:
+                            result_keys.append(name)
+                            break
+            return filtered, result_keys
+
+        mask_t = df["lo_fcl"] == "T"
+        if mask_t.any():
+            res = df.loc[mask_t].apply(_filter_hits_for_lo_t, axis=1)
+            df.loc[mask_t, hits_col] = [r[0] for r in res]
+            df.loc[mask_t, "matched_keys"] = [r[1] for r in res]
+
     df["hit_len"] = df[hits_col].apply(len)
     df["judge"] = df["hit_len"].apply(
         lambda x: "0" if x == 0 else "1" if x == 1 else "2+"
@@ -321,8 +361,12 @@ def process_one_country_phase1(
     hit_name_2p_candidate = _count_candidates_for_judge(df, "2+", judge_col="name_judge")
     hit_name_0_candidate = _count_candidates_for_judge(df, "0", judge_col="name_judge")
 
+    # 統計の country: cn 列があれば "cn101_IS" 形式（以前の cn002_AZ_アゼルバイジャン に近い）
+    cn_val = str(df["cn"].iloc[0]).strip() if "cn" in df.columns and len(df) > 0 else ""
+    country_label = f"{cn_val}_{country_code}" if cn_val else country_code
+
     stats = {
-        "country": country_code,
+        "country": country_label,
         "total_row": total_row,
         "total_candidate": total_candidate,
         "hit_name_1_row": hit_name_1_row,
@@ -421,6 +465,62 @@ def _merge_phase2_into_phase1(df_phase1: pd.DataFrame, df_phase2: pd.DataFrame) 
 
 
 # =========================================================
+# 列順序の整列（local_lon の右に GeoNames: fcl, fcode, edited_name, ...）
+# =========================================================
+
+# GeoNames マージ列の順序: local_lon の直後に fcl, fcode, edited_name, geonames_name_hits, ...
+GEONAMES_MERGE_ORDER = [
+    "fcl",
+    "fcode",
+    "distance",
+    "edited_name",
+    "geonames_name_hits",
+    "matched_keys",
+    "hit_name_len",
+    "name_judge",
+    "edited_candidates",
+    "matched_geonameid",
+    "matched_lat",
+    "matched_lon",
+    # Phase2
+    "geonames_alternatenames_hits",
+    "hit_alter_len",
+    "alter_judge",
+    "matched_stage",
+    "matched",
+    # 互換用
+    "judge",
+    "geonames_hits",
+]
+
+
+def _reorder_columns_for_output(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    出力用に列順を整える。
+    - local_lat, local_lon の直後に GeoNames: fcl, fcode, edited_name, geonames_name_hits, ...
+    """
+    cols = list(df.columns)
+    ordered = []
+    # 1. GeoNames マージ列以外（local_lat/lon 除く）を元の順で
+    for c in cols:
+        if c not in GEONAMES_MERGE_ORDER and c not in ("local_lat", "local_lon"):
+            ordered.append(c)
+    # 2. local_lat, local_lon（local_lon の右に fcl を置くため、その直前に配置）
+    for c in ("local_lat", "local_lon"):
+        if c in cols:
+            ordered.append(c)
+    # 3. GeoNames 列を指定順で
+    for c in GEONAMES_MERGE_ORDER:
+        if c in cols:
+            ordered.append(c)
+    # 4. 残り
+    for c in cols:
+        if c not in ordered:
+            ordered.append(c)
+    return df[[c for c in ordered]]
+
+
+# =========================================================
 # Excel 出力（マージファイル単位）
 # =========================================================
 
@@ -432,6 +532,7 @@ def _write_phase1_excel(df: pd.DataFrame, base: str, output_name_dir: Path) -> N
     df["judge"] = df["name_judge"]  # run_stage_match 用
     if "geonames_name_hits" in df.columns:
         df["geonames_hits"] = df["geonames_name_hits"]  # export_for_leaflet 用
+    df = _reorder_columns_for_output(df)
     output_name_dir.mkdir(parents=True, exist_ok=True)
     out_excel = output_name_dir / f"{base}_name.xlsx"
     with pd.ExcelWriter(out_excel, engine="openpyxl") as writer:
@@ -446,6 +547,7 @@ def _write_phase2_excel(df: pd.DataFrame, base: str, output_alternate_dir: Path)
     """Phase2 結果を *_alternate.xlsx に出力。Phase2 対象行のみ（hit-name-0）。"""
     if df is None or len(df) == 0:
         return
+    df = _reorder_columns_for_output(df.copy())
     output_alternate_dir.mkdir(parents=True, exist_ok=True)
     out_excel = output_alternate_dir / f"{base}_alternate.xlsx"
     with pd.ExcelWriter(out_excel, engine="openpyxl") as writer:
@@ -528,6 +630,10 @@ def main():
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
             df_all = pd.read_excel(merged_path)
+
+        # local の fcl（Excel の num 由来）を lo_fcl にリネーム（GeoNames の fcl と区別）
+        if "fcl" in df_all.columns:
+            df_all = df_all.rename(columns={"fcl": "lo_fcl"})
 
         if "cc" not in df_all.columns:
             print("  skip: cc 列がありません")
