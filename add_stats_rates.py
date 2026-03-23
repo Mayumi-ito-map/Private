@@ -1,14 +1,14 @@
 """
 add_stats_rates.py
 
-tower1_world_stats.xlsx を読み込み、
+tower1_world_stats_base.xlsx（カテゴリ分けなし生データ）を読み込み、
 ・候補あたりヒット率
 ・Phase2 解決率
 ・司令塔②への流出率
 を追加して別名保存する。
 
-入力: output_match/tower1_world_stats.xlsx
-出力: output_match/tower1_world_stats_rates.xlsx
+入力: output_match/tower1_world_stats_base.xlsx
+出力: output_match/tower1_world_stats_base_rates.xlsx
 """
 
 from pathlib import Path
@@ -16,8 +16,8 @@ from pathlib import Path
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent
-INPUT_PATH = BASE_DIR / "output_match" / "tower1_world_stats.xlsx"
-OUTPUT_PATH = BASE_DIR / "output_match" / "tower1_world_stats_rates.xlsx"
+INPUT_PATH = BASE_DIR / "output_match" / "tower1_world_stats_base.xlsx"
+OUTPUT_PATH = BASE_DIR / "output_match" / "tower1_world_stats_base_rates.xlsx"
 
 
 def main():
@@ -25,7 +25,11 @@ def main():
         print(f"Error: {INPUT_PATH} not found. Run run_local_build.py first.")
         return
 
-    df = pd.read_excel(INPUT_PATH, engine="openpyxl")
+    # tower1_world_stats_base: sheet "all"=全行, "summary"=国別集計。add_stats_rates は summary を使用
+    try:
+        df = pd.read_excel(INPUT_PATH, engine="openpyxl", sheet_name="summary")
+    except ValueError:
+        df = pd.read_excel(INPUT_PATH, engine="openpyxl")  # 旧形式（summary のみ）の互換
 
     # 候補あたりヒット率(%) = (hit-name-1 + hit-name-2+_can) / total_can × 100
     hit_name_1 = df["hit-name-1"]
