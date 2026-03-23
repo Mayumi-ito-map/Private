@@ -36,13 +36,12 @@ def load_overseas_map():
 
 
 def build_stage_maps(records: list[dict]):
+    """name / alternatenames から Stage1/2/3 の正規化キーで辞書を構築。asciiname は使用しない。"""
     maps = {"stage1": {}, "stage2": {}, "stage3": {}}
     for record in records:
         names = []
         if record.get("name"):
             names.append(record["name"])
-        if record.get("asciiname"):
-            names.append(record["asciiname"])
         alt = record.get("alternatenames")
         if isinstance(alt, list):
             names.extend(alt)

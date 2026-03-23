@@ -64,9 +64,9 @@ def reorder_by_comma(text: str):
 # ③ 略語展開（1 → N）
 # =====================
 def replace_abbreviation_with_dict(text, abbreviation_dict):
-    # return [text]
+    # return [text]   # ← 略語展開なしでテストするときはこれを返す
 
-    # 以下は略語展開ありの場合に使用
+    # # 以下は略語展開ありの場合に使用
     results = [text]
 
     for key, values in abbreviation_dict.items():
