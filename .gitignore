@@ -54,3 +54,6 @@ memo/*
 # Leaflet見本は全部無視
 # =========================
 LeafletMap見本/
+graphs/
+marge/
+*.pyc
