@@ -19,7 +19,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 INPUT_DIR = BASE_DIR / "excel_local_work"
-OUTPUT_DIR = BASE_DIR / "excel_local_merged"
+OUTPUT_DIR = BASE_DIR / "excel_local_merged＿02"
 
 # 採用列（この順序で出力）
 COLS = [
@@ -56,11 +56,11 @@ NUM_TO_FCL = {
 
 # 地域別: (出力ファイル名, 対象ファイルパターン)
 REGIONS = [
-    # ("cn300_北中アメリカ.xlsx", "cn3*.xlsx"),
-    # ("cn400_500_南米オセアニア.xlsx", "cn4*.xlsx"),  # cn4 + cn5
-    ("cn000_アジア.xlsx", "cn0*.xlsx"),
-    ("cn100_ヨーロッパ.xlsx", "cn1*.xlsx"),
-    ("cn200_アフリカ.xlsx", "cn2*.xlsx")
+    ("cn000_asia.xlsx", "cn0*.xlsx"),
+    ("cn100_europe.xlsx", "cn1*.xlsx"),
+    ("cn200_africa.xlsx", "cn2*.xlsx"),
+    ("cn300_america.xlsx", "cn3*.xlsx"),
+    ("cn450_oceania.xlsx", "cn4*.xlsx"),  # cn4 + cn5
 ]
 
 
@@ -152,7 +152,7 @@ def merge_region(pattern: str, out_name: str) -> int:
 
 
 def main():
-    print("Excel 合体（cn300, cn400+cn500）")
+    print("Excel 合体（cn000〜cn400+cn500、全5地域）")
     print(f"入力: {INPUT_DIR}")
     print(f"出力: {OUTPUT_DIR}\n")
 
