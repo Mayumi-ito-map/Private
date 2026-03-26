@@ -39,8 +39,31 @@ def _remove_ayn(text: str) -> str:
     return text
 
 
+_SPECIAL_LATIN_MAP = str.maketrans({
+    "\u0131": "i",   # ı  ドットなし i（トルコ語・アゼルバイジャン語）
+    "\u0130": "I",   # İ  ドット付き I
+    "\u0259": "a",   # ə  シュワー（アゼルバイジャン語）
+    "\u018F": "A",   # Ə  シュワー大文字
+    "\u00F0": "d",   # ð  エズ（アイスランド語）
+    "\u00D0": "D",   # Ð  エズ大文字
+    "\u0111": "d",   # đ  クロスド d（ベトナム語等）
+    "\u0110": "D",   # Đ  クロスド D
+    "\u0142": "l",   # ł  ストローク l（ポーランド語）
+    "\u0141": "L",   # Ł  ストローク L
+    "\u00F8": "o",   # ø  ストローク o（ノルウェー語・デンマーク語）
+    "\u00D8": "O",   # Ø  ストローク O
+    "\u00DF": "ss",  # ß  エスツェット（ドイツ語）
+    "\u0127": "h",   # ħ  ストローク h（マルタ語）
+    "\u0126": "H",   # Ħ  ストローク H
+    "\u01A1": "o",   # ơ  ホーン付き o（ベトナム語）
+    "\u01AF": "U",   # Ư  ホーン付き U
+    "\u01B0": "u",   # ư  ホーン付き u
+})
+
+
 def _remove_accents(text: str) -> str:
-    """アクセント記号除去（é→e 等）"""
+    """アクセント記号除去 + NFD で分解できない特殊ラテン文字の置換。"""
+    text = text.translate(_SPECIAL_LATIN_MAP)
     nfd = unicodedata.normalize("NFD", text)
     return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 

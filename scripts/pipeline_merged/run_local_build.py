@@ -43,10 +43,10 @@ BASE_DIR = PROJECT_ROOT
 EXCEL_DIR = BASE_DIR / "excel_local_merged"
 OVERSEAS_JSON = BASE_DIR / "config" / "overseas_territories.json"
 OUTPUT_DIR = BASE_DIR / "output_match"
-OUTPUT_NAME_DIR = BASE_DIR / "output_match_name_cate_exclude_CN_16"
-OUTPUT_ALTERNATE_DIR = BASE_DIR / "output_match_alternatenames_cate_exclude_CN_16"
+OUTPUT_NAME_DIR = BASE_DIR / "output_match_name_cate_exclude_KR-KP_17"
+OUTPUT_ALTERNATE_DIR = BASE_DIR / "output_match_alternatenames_cate_exclude_KR-KP_17"
 OUTPUT_WORLDWIDE_DIR = BASE_DIR / "output_match_worldwide_distance"
-STATS_FILENAME = "tower1_world_stats_cate_exclude_CN_16.xlsx"
+STATS_FILENAME = "tower1_world_stats_cate_exclude_KR-KP_17.xlsx"
 
 # 全世界モード用
 TERRAIN_PKL = BASE_DIR / "geonames_worldwide_terrain.pkl"
@@ -55,7 +55,7 @@ NUM_FOR_WORLDWIDE_MATCHING = {
     481, 482, 483, 484, 485, 486, 487, 488, 491, 492,
 }
 
-TARGET_COL = "修正後欧文地名2"
+TARGET_COL = "修正後欧文地名"  # Excel の地名列。ローマナイズ
 
 # ローカル緯度経度（Leaflet・距離計測用）。Excelに無ければ欠損のまま出力。
 LOCAL_LAT_LON_COLUMNS = [
@@ -84,8 +84,8 @@ MERGED_PATTERNS = [
     # "cn200_africa.xlsx",
     # "cn300_america.xlsx",
     # "cn450_oceania.xlsx",
-    "cn001_CN_asia.xlsx",
-    # "cn002_KR-KP_asia.xlsx"
+    # "cn001_CN_asia.xlsx",
+    "cn002_KR-KP_asia.xlsx"
 ]
 
 # 削除フラグ列（"1" の行はマッチング対象から除外）
