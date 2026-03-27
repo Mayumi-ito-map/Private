@@ -1,6 +1,6 @@
 # GeoNames Matching Pipeline
 
-GeoNames データを使って地名マッチングを行うパイプラインです。
+GeoNames データを使って地名マッチングを行うパイプライン（v2）です。
 
 ## セットアップ
 
