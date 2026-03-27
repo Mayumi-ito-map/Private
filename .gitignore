@@ -62,5 +62,5 @@ marge/
 # レガシースクリプト（旧バージョン）
 # =========================
 scripts/legacy_country/
-geojson/
+/geojson/
 GIT_LEARNING_PLAN.md
