@@ -57,3 +57,8 @@ LeafletMap見本/
 graphs/
 marge/
 *.pyc
+
+# =========================
+# レガシースクリプト（旧バージョン）
+# =========================
+scripts/legacy_country/
