@@ -24,3 +24,17 @@ project/
 ├── config/               # 設定ファイル
 └── data/                 # データファイル
 ```
+
+## 使い方
+
+### 地名マッチングの実行
+
+```bash
+python scripts/pipeline_merged/run_local_build.py
+```
+
+### GeoJSON の国別分割
+
+```bash
+python scripts/geojson/split_geojson_by_country.py
+```
