@@ -258,4 +258,88 @@ python -m scripts.pipeline_merged.run_local_build --worldwide
 
 ---
 
-*作成日: 2025-03-10 | 更新日: 2025-03-16*
+## 12. 調査報告: AZE 0マッチ原因分析（2026-03-26）
+
+### 12.1 調査の経緯
+
+アゼルバイジャン（AZE）を対象に、GeoJSON 上で `matched_flag=×`（0マッチ）となっている 10件の地名について、`data/AZ.txt` および `allCountries.txt`（1,340万行）の `name`・`alternatenames` 列との完全一致を調査した。
+
+### 12.2 調査結果
+
+| 地名 | name 列 | alternatenames 列 | 状況 |
+|------|---------|-------------------|------|
+| Ordubad | **あり** | **あり** | データにあるのに 0マッチ |
+| Qazax | **あり** | **あり** | 同上 |
+| Neftçala | **あり** | **あり** | 同上 |
+| Şamaxı | なし | **あり** | alt にはある |
+| Mingäçevir | なし | **あり** | alt にはある |
+| Qazımämmäd | なし | なし | 完全一致ではデータになし |
+| Siyäzän | なし | なし | 同上 |
+| Dänizkänar | なし | なし | 同上 |
+| Xankändi | なし | なし | 同上 |
+| Xocavänd | なし | なし | 同上 |
+
+`allCountries.txt` でも `AZ.txt` と同一の結果であり、国別ファイル特有の欠損ではないことを確認。
+
+### 12.3 特定された原因（2点）
+
+#### 原因1: FCL フィルタによる除外
+
+`run_local_build.py` の `FCL_FILTERS`（73〜78行目）により、Excel 側の `lo_fcl` に対して GeoNames 側の `fcl` が制限されている。例えば `lo_fcl=S`（ポイント）の行に対し GeoNames 側が `fcl=P`（都市）の場合、名前が完全一致していても除外される。
+
+```python
+FCL_FILTERS = {
+    "P": {"enabled": True, "gn_allowed": ("P",)},
+    "A": {"enabled": True, "gn_allowed": ("A", "L")},
+    "S": {"enabled": True, "gn_allowed": ("S", "V")},
+    "T": {"enabled": True, "gn_allowed": ("H", "T")},
+}
+```
+
+Ordubad, Qazax, Neftçala は GeoNames 上で `fcl=P` であり、Excel 側カテゴリとの不一致で除外された可能性がある。
+
+#### 原因2: 距離閾値フィルタによる除外
+
+`DISTANCE_THRESHOLDS`（94〜102行目）により、ローカル座標と GeoNames 座標の距離が閾値を超える候補が除外される。特に `S: 10km` は厳格であり、ローカル座標に誤りがある場合にマッチ済み候補が 0 に落とされる。
+
+```python
+DISTANCE_THRESHOLDS = {
+    "P": 150,
+    "A": 500,
+    "S": 10,
+    "T": None,
+}
+ENABLE_DISTANCE_THRESHOLD = True
+```
+
+### 12.4 0マッチ10件の補足事項
+
+0マッチ（`matched_flag=×`）の10件は、マッチ済み（`T`）の53件と GeoJSON 上の構造が異なる。
+
+| 項目 | マッチ済み（T） | 0マッチ（×） |
+|------|----------------|-------------|
+| `geometry.coordinates` | 数値（緯度経度あり） | `[null, null]` |
+| `kml_*` 系プロパティ | あり | なし |
+| `title_from_google_api` | あり | **キー自体が存在しない** |
+
+この構造差により、0マッチの行には Google API 情報を活用できない。
+
+### 12.5 今後の `run_local_build.py` 見直し方針
+
+上記2点の原因を踏まえ、以下の見直しを予定している。
+
+- **FCL フィルタ**: `lo_fcl` と `gn_allowed` の対応が妥当か再検証。必要に応じて許容範囲の拡大を検討
+- **距離閾値**: ローカル座標の精度が低い国・カテゴリに対し、閾値の緩和または無効化を検討
+- **切り分け手順**: FCL フィルタと距離フィルタを一時的に無効化（`enabled=False`, `ENABLE_DISTANCE_THRESHOLD=False`）して再実行し、名前一致の有無を確認してからフィルタ条件を調整する
+
+---
+
+## 13. 参照: 正規化・あいまいマッチング関連
+
+`stage_matcher.py` のダイアクリティカル対応強化（`_SPECIAL_LATIN_MAP` 48文字追加）および司令塔②の設計詳細は、以下の別ドキュメントに記載。
+
+→ **`run_stage_match_設計図報告書.md`**（第7章〜第9章）
+
+---
+
+*作成日: 2025-03-10 | 更新日: 2026-03-31*

@@ -43,10 +43,10 @@ BASE_DIR = PROJECT_ROOT
 EXCEL_DIR = BASE_DIR / "excel_local_merged"
 OVERSEAS_JSON = BASE_DIR / "config" / "overseas_territories.json"
 OUTPUT_DIR = BASE_DIR / "output_match"
-OUTPUT_NAME_DIR = BASE_DIR / "output_match_name_cate_exclude_KR-KP_17"
-OUTPUT_ALTERNATE_DIR = BASE_DIR / "output_match_alternatenames_cate_exclude_KR-KP_17"
+OUTPUT_NAME_DIR = BASE_DIR / "output_match_name_cate_07-3"
+OUTPUT_ALTERNATE_DIR = BASE_DIR / "output_match_alternatenames_cate_07-3"
 OUTPUT_WORLDWIDE_DIR = BASE_DIR / "output_match_worldwide_distance"
-STATS_FILENAME = "tower1_world_stats_cate_exclude_KR-KP_17.xlsx"
+STATS_FILENAME = "tower1_world_stats_cate_07-3.xlsx"
 
 # 全世界モード用
 TERRAIN_PKL = BASE_DIR / "geonames_worldwide_terrain.pkl"
@@ -79,13 +79,13 @@ FCL_FILTERS = {
 
 # 合体ファイルのパターン #←ここを切り替え（テスト時は1件のみにすると高速）
 MERGED_PATTERNS = [
-    # "cn000_asia.xlsx",
-    # "cn100_europe.xlsx",
-    # "cn200_africa.xlsx",
-    # "cn300_america.xlsx",
-    # "cn450_oceania.xlsx",
-    # "cn001_CN_asia.xlsx",
-    "cn002_KR-KP_asia.xlsx"
+    "cn000_asia.xlsx",
+    "cn100_europe.xlsx",
+    "cn200_africa.xlsx",
+    "cn300_america.xlsx",
+    "cn450_oceania.xlsx",
+    "cn028_CN_asia.xlsx",
+    "cn026_KR-KP_asia.xlsx"
 ]
 
 # 削除フラグ列（"1" の行はマッチング対象から除外）
@@ -567,6 +567,29 @@ def _merge_phase2_into_phase1(df_phase1: pd.DataFrame, df_phase2: pd.DataFrame) 
     return df_out
 
 
+def _compute_final_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    matched_stage, judge, matched を最終状態で設定する。
+    name_judge / alter_judge の結果を統合し、1つの判定に集約する。
+    """
+    df = df.copy()
+
+    def _final(row):
+        nj = str(row.get("name_judge", "0")).strip() if pd.notna(row.get("name_judge")) else "0"
+        aj = str(row.get("alter_judge", "")).strip() if pd.notna(row.get("alter_judge")) else ""
+        if nj in ("1", "2+"):
+            return f"hit-name-{nj}", nj, True
+        if aj in ("1", "2+"):
+            return f"hit-alter-{aj}", aj, True
+        return "", "0", False
+
+    results = df.apply(_final, axis=1, result_type="expand")
+    df["matched_stage"] = results[0]
+    df["judge"] = results[1]
+    df["matched"] = results[2]
+    return df
+
+
 def _parse_distance_list(dist_val):
     """distance 列をリストに変換。' | ' 区切り。無効値は float('inf') で返す。"""
     if pd.isna(dist_val) or dist_val == "":
@@ -621,6 +644,8 @@ def _apply_distance_threshold_filter(df: pd.DataFrame) -> pd.DataFrame:
         if not hits or not isinstance(hits, list):
             continue
         distances = _parse_distance_list(row.get("distance"))
+        if not distances:
+            continue  # local の lat/lon が無く距離計算不可 → フィルタ対象外
         if len(distances) != len(hits):
             distances = distances[:len(hits)] if len(distances) > len(hits) else distances + [float("inf")] * (len(hits) - len(distances))
 
@@ -696,9 +721,7 @@ GEONAMES_MERGE_ORDER = [
     "alter_judge",
     "matched_stage",
     "matched",
-    # 互換用
     "judge",
-    "geonames_hits",
 ]
 
 
@@ -736,10 +759,7 @@ def _write_phase1_excel(df: pd.DataFrame, base: str, output_name_dir: Path) -> N
     """Phase1 結果を *_name.xlsx に出力。"""
     if df is None or len(df) == 0:
         return
-    df = df.copy()
-    df["judge"] = df["name_judge"]  # run_stage_match 用
-    if "geonames_name_hits" in df.columns:
-        df["geonames_hits"] = df["geonames_name_hits"]  # export_for_leaflet 用
+    df = _compute_final_columns(df.copy())
     df = _reorder_columns_for_output(df)
     output_name_dir.mkdir(parents=True, exist_ok=True)
     out_excel = output_name_dir / f"{base}_name.xlsx"
@@ -755,7 +775,8 @@ def _write_phase2_excel(df: pd.DataFrame, base: str, output_alternate_dir: Path)
     """Phase2 結果を *_alternate.xlsx に出力。全行を出力し、Phase2 対象外は alternate 列を空欄。"""
     if df is None or len(df) == 0:
         return
-    df = _reorder_columns_for_output(df.copy())
+    df = _compute_final_columns(df.copy())
+    df = _reorder_columns_for_output(df)
     output_alternate_dir.mkdir(parents=True, exist_ok=True)
     out_excel = output_alternate_dir / f"{base}_alternate.xlsx"
     with pd.ExcelWriter(out_excel, engine="openpyxl") as writer:
@@ -939,10 +960,7 @@ def main_worldwide():
         if df_out is not None and len(df_out) > 0:
             base = merged_path.stem
             out_path = OUTPUT_WORLDWIDE_DIR / f"{base}_terrain_phase1_2.xlsx"
-            df_out = df_out.copy()
-            df_out["judge"] = df_out["name_judge"]
-            if "geonames_name_hits" in df_out.columns:
-                df_out["geonames_hits"] = df_out["geonames_name_hits"]
+            df_out = _compute_final_columns(df_out.copy())
             df_out = _reorder_columns_for_output(df_out)
             df_out.to_excel(out_path, index=False)
             print(f"  -> {out_path.name}")
@@ -1064,13 +1082,7 @@ def main():
     # 統計表（tower1_world_stats）: 全行を出力。Phase1/Phase2 と出力形式を揃える
     if all_df_out:
         df_stats_all = pd.concat(all_df_out, ignore_index=True)
-        df_stats_all = df_stats_all.copy()
-        if "name_judge" in df_stats_all.columns:
-            df_stats_all["judge"] = df_stats_all["name_judge"]
-        elif "judge" not in df_stats_all.columns:
-            df_stats_all["judge"] = ""
-        if "geonames_name_hits" in df_stats_all.columns:
-            df_stats_all["geonames_hits"] = df_stats_all["geonames_name_hits"]
+        df_stats_all = _compute_final_columns(df_stats_all)
         df_stats_all = _reorder_columns_for_output(df_stats_all)
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         stats_path = OUTPUT_DIR / STATS_FILENAME

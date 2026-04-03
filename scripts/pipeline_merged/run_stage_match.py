@@ -1,8 +1,11 @@
 """
 司令塔②（合体Excel版）: judge==0 の行を Stage1→2→3 でマッチング
 
-入力: output_match_name/*_name.xlsx（司令塔①の出力）
+入力: output_match_alternatenames_cate/*.xlsx（司令塔①の出力）
 出力: output_match_results/
+
+国コードは Excel の cc 列から取得する。
+入力ファイルはエリア別でも国別でも、列名が同一であれば動作する。
 """
 
 import sys
@@ -21,7 +24,7 @@ from utils import is_excel_lock_file
 from normalizers.stage_matcher import normalize_stage1, normalize_stage2, normalize_stage3
 
 BASE_DIR = PROJECT_ROOT
-INPUT_DIR = BASE_DIR / "output_match_name"
+INPUT_DIR = BASE_DIR / "output_match_alternatenames_cate"
 OUTPUT_DIR = BASE_DIR / "output_match_results"
 CONFIG_DIR = BASE_DIR / "config"
 OVERSEAS_FILE = CONFIG_DIR / "overseas_territories.json"
@@ -78,6 +81,87 @@ def parse_edited_name(value) -> list:
     return [value] if value else []
 
 
+def _build_stage_maps_for_cc(cc: str, overseas_map: dict, db: dict,
+                              _cache: dict = {}) -> dict:
+    """国コード cc に対応する Stage1/2/3 マップを構築（キャッシュ付き）。"""
+    if cc in _cache:
+        return _cache[cc]
+    placename_dict, records, gdf = get_geonames_for_country(db, cc, overseas_map)
+    stage_maps = build_stage_maps(records)
+    _cache[cc] = stage_maps
+    return stage_maps
+
+
+def _match_row(idx, df, stage_maps):
+    """1行の judge==0 行に対して Stage1→2→3 マッチングを実行。"""
+    raw = df.at[idx, "edited_name"]
+    candidates = parse_edited_name(raw)
+    if not candidates:
+        return None
+
+    stage1_hits = {}
+    stage2_hits = {}
+    stage3_hits = {}
+    s1 = s2 = s3 = s0 = 0
+
+    for candidate in candidates:
+        matched = False
+        matched_stage = None
+
+        for stage_name, normalizer in [
+            ("stage1", normalize_stage1),
+            ("stage2", normalize_stage2),
+            ("stage3", normalize_stage3),
+        ]:
+            key = normalizer(candidate)
+            hits = stage_maps[stage_name].get(key)
+            if hits:
+                for r in hits:
+                    geoid = r.get("geonameid")
+                    if not geoid:
+                        continue
+                    record_copy = dict(r)
+                    if stage_name == "stage1":
+                        stage1_hits[geoid] = record_copy
+                    elif stage_name == "stage2":
+                        stage2_hits[geoid] = record_copy
+                    else:
+                        stage3_hits[geoid] = record_copy
+                matched = True
+                matched_stage = stage_name
+                break
+
+        if matched:
+            if matched_stage == "stage1":
+                s1 += 1
+            elif matched_stage == "stage2":
+                s2 += 1
+            else:
+                s3 += 1
+        else:
+            s0 += 1
+
+    if stage1_hits:
+        df.at[idx, "Stage1_hit"] = list(stage1_hits.values())
+    elif stage2_hits:
+        df.at[idx, "Stage2_hit"] = list(stage2_hits.values())
+    elif stage3_hits:
+        df.at[idx, "Stage3_hit"] = list(stage3_hits.values())
+
+    has_hit = bool(stage1_hits or stage2_hits or stage3_hits)
+    if has_hit:
+        df.at[idx, "matched"] = True
+        df.at[idx, "matched_stage"] = (
+            "stage1" if stage1_hits else "stage2" if stage2_hits else "stage3"
+        )
+    else:
+        df.at[idx, "matched"] = False
+        df.at[idx, "matched_stage"] = ""
+
+    return {"hit": has_hit, "s1": s1, "s2": s2, "s3": s3, "s0": s0,
+            "candidates": len(candidates)}
+
+
 def process_excel(path: Path, overseas_map: dict, db: dict):
     print(f"processing: {path.name}")
 
@@ -86,95 +170,46 @@ def process_excel(path: Path, overseas_map: dict, db: dict):
     if "edited_name" not in df.columns or judge_col not in df.columns:
         print("  Skipping: missing edited_name or judge")
         return None
-
-    country_code = path.stem.replace("_name", "").split("_")[1] if "_" in path.stem else ""
-    if not country_code:
-        print("  Skipping: no country code in filename")
+    if "cc" not in df.columns:
+        print("  Skipping: missing cc column")
         return None
-
-    placename_dict, records, gdf = get_geonames_for_country(db, country_code, overseas_map)
-    stage_maps = build_stage_maps(records)
 
     df["Stage1_hit"] = None
     df["Stage2_hit"] = None
     df["Stage3_hit"] = None
-    df["muched"] = False
-    df["muched_stage"] = ""
+    df["matched"] = False
+    df["matched_stage"] = ""
 
     not_target = df[judge_col].astype(str).str.strip() != "0"
-    df.loc[not_target, "muched"] = True
+    df.loc[not_target, "matched"] = True
+
+    target_rows = df[df[judge_col].astype(str).str.strip() == "0"].index
+    total_rows = len(target_rows)
+    print(f"  judge==0 rows: {total_rows}")
 
     total_candidates = 0
     rows_with_hit = 0
     stage1_count = stage2_count = stage3_count = still_0_count = 0
 
-    target_rows = df[df[judge_col].astype(str).str.strip() == "0"].index
-    total_rows = len(target_rows)
-
-    for idx in target_rows:
-        raw = df.at[idx, "edited_name"]
-        candidates = parse_edited_name(raw)
-        if not candidates:
+    cc_groups = df.loc[target_rows].groupby("cc").groups
+    for cc, group_idx in sorted(cc_groups.items()):
+        cc_str = str(cc).strip()
+        if not cc_str:
             continue
+        print(f"    cc={cc_str}: {len(group_idx)} rows", flush=True)
+        stage_maps = _build_stage_maps_for_cc(cc_str, overseas_map, db)
 
-        stage1_hits = {}
-        stage2_hits = {}
-        stage3_hits = {}
-
-        for candidate in candidates:
-            total_candidates += 1
-            matched = False
-            matched_stage = None
-
-            for stage_name, normalizer in [
-                ("stage1", normalize_stage1),
-                ("stage2", normalize_stage2),
-                ("stage3", normalize_stage3),
-            ]:
-                key = normalizer(candidate)
-                hits = stage_maps[stage_name].get(key)
-                if hits:
-                    for r in hits:
-                        geoid = r.get("geonameid")
-                        if not geoid:
-                            continue
-                        record_copy = dict(r)
-                        if stage_name == "stage1":
-                            stage1_hits[geoid] = record_copy
-                        elif stage_name == "stage2":
-                            stage2_hits[geoid] = record_copy
-                        else:
-                            stage3_hits[geoid] = record_copy
-                    matched = True
-                    matched_stage = stage_name
-                    break
-
-            if matched:
-                if matched_stage == "stage1":
-                    stage1_count += 1
-                elif matched_stage == "stage2":
-                    stage2_count += 1
-                else:
-                    stage3_count += 1
-            else:
-                still_0_count += 1
-
-        if stage1_hits:
-            df.at[idx, "Stage1_hit"] = list(stage1_hits.values())
-        elif stage2_hits:
-            df.at[idx, "Stage2_hit"] = list(stage2_hits.values())
-        elif stage3_hits:
-            df.at[idx, "Stage3_hit"] = list(stage3_hits.values())
-
-        if stage1_hits or stage2_hits or stage3_hits:
-            rows_with_hit += 1
-            df.at[idx, "muched"] = True
-            df.at[idx, "muched_stage"] = (
-                "stage1" if stage1_hits else "stage2" if stage2_hits else "stage3"
-            )
-        else:
-            df.at[idx, "muched"] = False
-            df.at[idx, "muched_stage"] = ""
+        for idx in group_idx:
+            result = _match_row(idx, df, stage_maps)
+            if result is None:
+                continue
+            total_candidates += result["candidates"]
+            if result["hit"]:
+                rows_with_hit += 1
+            stage1_count += result["s1"]
+            stage2_count += result["s2"]
+            stage3_count += result["s3"]
+            still_0_count += result["s0"]
 
     if total_candidates > 0:
         s1p = round(stage1_count / total_candidates * 100, 1)
@@ -184,12 +219,12 @@ def process_excel(path: Path, overseas_map: dict, db: dict):
     else:
         s1p = s2p = s3p = s0p = 0.0
 
-    base_stem = path.stem.replace("_name", "")
-    out_name = f"{base_stem}_result.xlsx"
+    out_name = f"{path.stem}_result.xlsx"
     df.to_excel(OUTPUT_DIR / out_name, index=False)
+    print(f"  saved: {out_name}")
 
     return {
-        "country": base_stem,
+        "file": path.stem,
         "total_0_target": total_rows,
         "rows_with_hit": rows_with_hit,
         "rows_still_0": total_rows - rows_with_hit,
@@ -209,7 +244,7 @@ def main():
     overseas_map = load_overseas_map()
     stats = []
 
-    for path in sorted(INPUT_DIR.glob("*_name.xlsx")):
+    for path in sorted(INPUT_DIR.glob("*.xlsx")):
         if is_excel_lock_file(path):
             continue
         s = process_excel(path, overseas_map, db)
@@ -218,8 +253,8 @@ def main():
 
     if stats:
         df_summary = pd.DataFrame(stats)
-        df_summary.to_excel(OUTPUT_DIR / "world_summary.xlsx", index=False)
-        print(f"world_summary.xlsx saved -> {OUTPUT_DIR}")
+        df_summary.to_excel(OUTPUT_DIR / "tower2_world_summary.xlsx", index=False)
+        print(f"tower2_world_summary.xlsx saved -> {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
