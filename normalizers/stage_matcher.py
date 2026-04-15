@@ -32,7 +32,7 @@ def normalize_stage1(text: str) -> str:
 def _remove_ayn(text: str) -> str:
     """アイン系記号の除去（中東系地名の表記ゆれ対策）"""
     ayn_chars = [
-        "\u02BB", "\u02BF", "\u2018", "\u2019", "\u02BC", "\u02C1",
+        "\u02BB", "\u02BD", "\u02BF", "\u2018", "\u2019", "\u02BC", "\u02C1",
     ]
     for ch in ayn_chars:
         text = text.replace(ch, "")
@@ -92,6 +92,9 @@ _SPECIAL_LATIN_MAP = str.maketrans({
     "\u0167": "t",   # ŧ  ストローク t（サーミ語）35回
     "\u0166": "T",   # Ŧ  ストローク T
     "\u1E9E": "SS",  # ẞ  エスツェット大文字 2回
+    # --- 第3弾: 追加アルファベット一覧調査で追加（2026-04-02） ---
+    "\u0224": "Z",   # Ȥ  フック付き Z 大文字
+    "\u0225": "z",   # ȥ  フック付き z（アラビア語ラテン転写）
 })
 
 

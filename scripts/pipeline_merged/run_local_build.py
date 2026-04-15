@@ -43,10 +43,10 @@ BASE_DIR = PROJECT_ROOT
 EXCEL_DIR = BASE_DIR / "excel_local_merged"
 OVERSEAS_JSON = BASE_DIR / "config" / "overseas_territories.json"
 OUTPUT_DIR = BASE_DIR / "output_match"
-OUTPUT_NAME_DIR = BASE_DIR / "output_match_name_cate_07-3"
-OUTPUT_ALTERNATE_DIR = BASE_DIR / "output_match_alternatenames_cate_07-3"
+OUTPUT_NAME_DIR = BASE_DIR / "output_match_name_cate_CN_固有名詞"
+OUTPUT_ALTERNATE_DIR = BASE_DIR / "output_match_alternatenames_CN_固有名詞"
 OUTPUT_WORLDWIDE_DIR = BASE_DIR / "output_match_worldwide_distance"
-STATS_FILENAME = "tower1_world_stats_cate_07-3.xlsx"
+STATS_FILENAME = "tower1_world_stats_CN_固有名詞.xlsx"
 
 # 全世界モード用
 TERRAIN_PKL = BASE_DIR / "geonames_worldwide_terrain.pkl"
@@ -71,21 +71,23 @@ LOCAL_LATLONG_SINGLE_COL = "lat,long"
 # local_fcl ごとに ON/OFF と GeoNames の許容 fcl を設定。
 # enabled=False にするとそのカテゴリはフィルタなし（制限なしの比較用）。True
 FCL_FILTERS = {
-    "P": {"enabled": True, "gn_allowed": ("P",)},           # 都市
-    "A": {"enabled": True, "gn_allowed": ("A", "L")},      # 地域・エリア
-    "S": {"enabled": True, "gn_allowed": ("S", "V")},      # ポイント
-    "T": {"enabled": True,  "gn_allowed": ("H", "T")},     # 自然（memo/260304/local_fcl_T_GeoNames_fcl制限_報告書.md）
+    "P": {"enabled": False, "gn_allowed": ("P",)},           # 都市
+    "A": {"enabled": False, "gn_allowed": ("A", "L")},      # 地域・エリア
+    "S": {"enabled": False, "gn_allowed": ("S", "V")},      # ポイント
+    "T": {"enabled": False,  "gn_allowed": ("H", "T")},     # 自然（memo/260304/local_fcl_T_GeoNames_fcl制限_報告書.md）
 }
 
 # 合体ファイルのパターン #←ここを切り替え（テスト時は1件のみにすると高速）
 MERGED_PATTERNS = [
-    "cn000_asia.xlsx",
-    "cn100_europe.xlsx",
-    "cn200_africa.xlsx",
-    "cn300_america.xlsx",
-    "cn450_oceania.xlsx",
+    # "cn000_asia.xlsx",
+    # "cn100_europe.xlsx",
+    # "cn200_africa.xlsx",
+    # "国立公園.xlsx",
+    # "cn300_america.xlsx",
+    # "cn450_oceania.xlsx",
+    # "cn026_KR-KP_asia.xlsx",
     "cn028_CN_asia.xlsx",
-    "cn026_KR-KP_asia.xlsx"
+    # "cn001_JP_日本.xlsx",
 ]
 
 # 削除フラグ列（"1" の行はマッチング対象から除外）
