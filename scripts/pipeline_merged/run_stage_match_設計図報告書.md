@@ -84,11 +84,12 @@
 
 | 列名 | 説明 |
 |------|------|
-| `Stage1_hit` | Stage1 でヒットした GeoNames レコードのリスト |
-| `Stage2_hit` | Stage2 でヒットした GeoNames レコードのリスト |
-| `Stage3_hit` | Stage3 でヒットした GeoNames レコードのリスト |
+| `stage1-hit-1` | Stage1 でヒットし、当該キーに対するユニーク geonameid が 1 件のときのレコードリスト |
+| `stage1-hit-2+` | Stage1 でヒットし、当該キーに対するユニーク geonameid が 2 件以上のときのレコードリスト |
+| `stage2-hit-1` / `stage2-hit-2+` | Stage2 について同上 |
+| `stage3-hit-1` / `stage3-hit-2+` | Stage3 について同上 |
 | `matched` | マッチした（TRUE）/ しない（FALSE） |
-| `matched_stage` | ヒットした Stage（`stage1` / `stage2` / `stage3` / 空欄） |
+| `matched_stage` | ヒットした区分（例: `stage1-hit-1`, `stage1-hit-2+`, `stage1-hit-mixed`, `stage2-hit-1`, … / 空欄）。`hit-mixed` は同一ステージ内で hit-1 と hit-2+ の両方に候補が寄った行 |
 
 ---
 
@@ -366,6 +367,7 @@ python run_stage_match.py
 | 2026-03-31 | 国コード取得をファイル名から `cc` 列に変更。エリア別/国別ファイルの両対応 |
 | 2026-03-31 | `muched` タイポを `matched` に修正 |
 | 2026-03-31 | サマリー出力を `tower2_world_summary.xlsx` に命名変更 |
+| 2026-04-15 | Stage マップをユニーク geonameid 数に基づき `stage{n}-hit-1` / `stage{n}-hit-2+` の 6 インデックスに分割。出力列・`matched_stage`・`tower2_world_summary` の内訳を対応 |
 
 ---
 
