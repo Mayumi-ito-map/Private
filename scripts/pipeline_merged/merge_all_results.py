@@ -138,8 +138,17 @@ def load_local_cate() -> pd.DataFrame:
 # 2. 司令塔②（あいまいマッチング）の読み込み
 # =========================================================
 STAGE_KEEP_COLS = [
-    "Stage1_hit", "Stage2_hit", "Stage3_hit",
-    "matched", "matched_stage",
+    "stage1-hit-1",
+    "stage1-hit-2+",
+    "stage2-hit-1",
+    "stage2-hit-2+",
+    "stage3-hit-1",
+    "stage3-hit-2+",
+    "Stage1_hit",
+    "Stage2_hit",
+    "Stage3_hit",
+    "matched",
+    "matched_stage",
 ]
 
 STAGE_RENAME = {

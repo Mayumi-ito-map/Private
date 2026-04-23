@@ -10,9 +10,10 @@ Leaflet で 5 種類を色分け表示する用。
 色分け:
   local         : #ff0000
   geonames_hits : #0000ff
-  Stage1_hit    : #ffc800
-  Stage2_hit    : #00ff00
-  Stage3_hit    : #de47d9
+  stage1-hit-1 / stage1-hit-2+ : #ffc800
+  stage2-hit-1 / stage2-hit-2+ : #00ff00
+  stage3-hit-1 / stage3-hit-2+ : #de47d9
+  （旧列名 Stage1_hit 等も parse_hits で解釈可能）
 
 仕様: memo/geojson-Leaflet作成の指示.md
 """
@@ -51,7 +52,7 @@ COL_LOCUMN_TO_DISPLAY = {
 
 
 def parse_hits(value) -> list[dict]:
-    """Excel のセル（geonames_hits / Stage1_hit / Stage2_hit / Stage3_hit）を list[dict] に復元。"""
+    """Excel のセル（geonames_hits / stage*-hit-* / Stage*_hit）を list[dict] に復元。"""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return []
     if isinstance(value, list):
@@ -166,6 +167,12 @@ def build_geojson(df: pd.DataFrame, country_label: str) -> dict:
         add_geoname_features(features, gh, "geonames_hits", COLOR_GEONAMES_HITS, row_index_1based)
 
         for col, color in (
+            ("stage1-hit-1", COLOR_STAGE1),
+            ("stage1-hit-2+", COLOR_STAGE1),
+            ("stage2-hit-1", COLOR_STAGE2),
+            ("stage2-hit-2+", COLOR_STAGE2),
+            ("stage3-hit-1", COLOR_STAGE3),
+            ("stage3-hit-2+", COLOR_STAGE3),
             ("Stage1_hit", COLOR_STAGE1),
             ("Stage2_hit", COLOR_STAGE2),
             ("Stage3_hit", COLOR_STAGE3),

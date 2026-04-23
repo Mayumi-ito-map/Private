@@ -61,7 +61,17 @@ def row_candidates(row):
     judge = str(row.get("judge", row.get("name_judge", ""))).strip()
     if judge != "0":
         return parse_candidates(row.get("geonames_hits", row.get("geonames_name_hits")))
-    for col in ("Stage1_hit", "Stage2_hit", "Stage3_hit"):
+    for col in (
+        "stage1-hit-1",
+        "stage1-hit-2+",
+        "stage2-hit-1",
+        "stage2-hit-2+",
+        "stage3-hit-1",
+        "stage3-hit-2+",
+        "Stage1_hit",
+        "Stage2_hit",
+        "Stage3_hit",
+    ):
         hits = parse_candidates(row.get(col))
         if hits:
             return hits
